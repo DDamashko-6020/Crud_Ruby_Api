@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestor de Productos — Ruby</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --surface2: #f0efe9;
+      --border: rgba(0,0,0,0.1);
+      --border-strong: rgba(0,0,0,0.2);
+      --text: #1a1a18;
+      --text-muted: #6b6b67;
+      --accent: #9b2335;
+      --accent-light: #fdf0f1;
+      --accent-hover: #7a1a28;
+      --danger: #a32d2d;
+      --danger-light: #fcebeb;
+      --warning: #854f0b;
+      --warning-light: #faeeda;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #18181a;
+        --surface: #232326;
+        --surface2: #2a2a2e;
+        --border: rgba(255,255,255,0.08);
+        --border-strong: rgba(255,255,255,0.15);
+        --text: #f0efe9;
+        --text-muted: #9a9a96;
+        --accent: #e05c6e;
+        --accent-light: #3a0a12;
+        --accent-hover: #f07a8a;
+        --danger: #f09595;
+        --danger-light: #3a1010;
+        --warning: #fac775;
+        --warning-light: #3a2205;
+      }
+    }
+
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; position: sticky; top: 0; z-index: 100;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; color: var(--accent); }
+    .brand-icon { width: 32px; height: 32px; background: var(--accent-light); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .header-stats { display: flex; gap: 1.5rem; font-size: 13px; color: var(--text-muted); }
+    .header-stat strong { color: var(--text); }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+
+    .search-wrap { flex: 1; min-width: 200px; position: relative; }
+    .search-wrap input { width: 100%; padding: 0 12px 0 36px; height: 38px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s; }
+    .search-wrap input:focus { border-color: var(--accent); }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 15px; pointer-events: none; }
+
+    .btn { height: 38px; padding: 0 16px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s; font-family: inherit; color: var(--text); background: var(--surface); white-space: nowrap; }
+    .btn:hover { background: var(--surface2); }
+    .btn-primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 500; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-danger { background: var(--danger-light); color: var(--danger); border-color: transparent; }
+    .btn-sm { height: 30px; padding: 0 10px; font-size: 12px; }
+
+    .table-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: var(--surface2); }
+    th { text-align: left; padding: 10px 16px; font-weight: 500; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 0.5px solid var(--border); }
+    td { padding: 12px 16px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    .id-badge { display: inline-block; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 4px; padding: 2px 7px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .price { font-weight: 500; }
+    .stock-badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .stock-ok  { background: #e8f5ee; color: #2d6a4f; }
+    .stock-low { background: var(--warning-light); color: var(--warning); }
+    .stock-out { background: var(--danger-light); color: var(--danger); }
+    .actions { display: flex; gap: 6px; }
+
+    .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+    .empty-icon { font-size: 40px; margin-bottom: 1rem; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border-radius: var(--radius); padding: 1.5rem; width: 100%; max-width: 420px; border: 0.5px solid var(--border); }
+    .modal-title { font-size: 16px; font-weight: 500; margin-bottom: 1.25rem; }
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    input[type=text], input[type=number] { width: 100%; padding: 0 12px; height: 38px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 14px; outline: none; font-family: inherit; transition: border-color 0.15s; }
+    input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.25rem; }
+
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text); color: var(--surface); padding: 10px 16px; border-radius: var(--radius-sm); font-size: 14px; z-index: 300; transform: translateY(80px); opacity: 0; transition: all 0.25s; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: var(--accent); }
+    .toast.error { background: var(--danger); color: #fff; }
+    .loading { text-align: center; padding: 3rem; color: var(--text-muted); font-size: 14px; }
+
+    .ruby-badge { font-size: 11px; background: var(--accent-light); color: var(--accent); border-radius: 4px; padding: 2px 7px; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">💎</div>
+    Gestor de Productos
+    <span class="ruby-badge">Ruby + Sinatra</span>
+  </div>
+  <div class="header-stats">
+    <span>Total: <strong id="stat-total">—</strong></span>
+    <span>Stock: <strong id="stat-stock">—</strong></span>
+    <span>Valor: <strong id="stat-valor">—</strong></span>
+  </div>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search" placeholder="Buscar por nombre..." />
+    </div>
+    <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo producto</button>
+    <button class="btn" onclick="cargarProductos()">↻ Actualizar</button>
+  </div>
+
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Creado</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body">
+        <tr><td colspan="6" class="loading">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<div class="modal-overlay" id="modal-overlay" onclick="cerrarModalSiFondo(event)">
+  <div class="modal">
+    <p class="modal-title" id="modal-titulo">Nuevo producto</p>
+    <input type="hidden" id="producto-id" />
+    <div class="field"><label>Nombre</label><input type="text" id="campo-nombre" placeholder="Ej: Laptop Gamer" /></div>
+    <div class="field"><label>Precio</label><input type="number" id="campo-precio" placeholder="0" min="0" /></div>
+    <div class="field"><label>Stock</label><input type="number" id="campo-stock" placeholder="0" min="0" /></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = 'http://localhost:4567';
+  let productos = [];
+
+  async function cargarProductos() {
+    try {
+      const res = await fetch(`${API}/productos`);
+      const json = await res.json();
+      productos = json.data || [];
+      renderTabla(productos);
+      actualizarStats(productos);
+    } catch {
+      mostrarToast('No se pudo conectar con la API', 'error');
+      document.getElementById('tabla-body').innerHTML =
+        `<tr><td colspan="6" class="empty-state"><div class="empty-icon">⚠️</div><p>Error al conectar con la API en ${API}</p></td></tr>`;
+    }
+  }
+
+  function renderTabla(lista) {
+    const tbody = document.getElementById('tabla-body');
+    if (!lista.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📦</div><p>No hay productos registrados.</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = lista.map(p => {
+      const sc = p.stock === 0 ? 'stock-out' : p.stock < 10 ? 'stock-low' : 'stock-ok';
+      const sl = p.stock === 0 ? 'Sin stock' : p.stock < 10 ? `${p.stock} (bajo)` : p.stock;
+      const fecha = p.creado_en ? new Date(p.creado_en).toLocaleDateString('es-CO') : '—';
+      return `<tr>
+        <td><span class="id-badge">#${p.id}</span></td>
+        <td>${p.nombre}</td>
+        <td class="price">$${Number(p.precio).toLocaleString('es-CO')}</td>
+        <td><span class="stock-badge ${sc}">${sl}</span></td>
+        <td style="color:var(--text-muted);font-size:13px">${fecha}</td>
+        <td><div class="actions">
+          <button class="btn btn-sm" onclick="editarProducto(${p.id})">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarProducto(${p.id},'${p.nombre}')">Eliminar</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function actualizarStats(lista) {
+    document.getElementById('stat-total').textContent = lista.length;
+    document.getElementById('stat-stock').textContent = lista.reduce((a, p) => a + p.stock, 0).toLocaleString('es-CO');
+    const valor = lista.reduce((a, p) => a + p.precio * p.stock, 0);
+    document.getElementById('stat-valor').textContent = '$' + Math.round(valor).toLocaleString('es-CO');
+  }
+
+  document.getElementById('search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    renderTabla(productos.filter(p => p.nombre.toLowerCase().includes(q)));
+  });
+
+  function abrirModal(p = null) {
+    document.getElementById('modal-titulo').textContent = p ? 'Editar producto' : 'Nuevo producto';
+    document.getElementById('producto-id').value = p ? p.id : '';
+    document.getElementById('campo-nombre').value = p ? p.nombre : '';
+    document.getElementById('campo-precio').value = p ? p.precio : '';
+    document.getElementById('campo-stock').value  = p ? p.stock  : '';
+    document.getElementById('modal-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('campo-nombre').focus(), 50);
+  }
+
+  function cerrarModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+  function cerrarModalSiFondo(e) { if (e.target === document.getElementById('modal-overlay')) cerrarModal(); }
+  function editarProducto(id) { const p = productos.find(x => x.id === id); if (p) abrirModal(p); }
+
+  async function guardarProducto() {
+    const id   = document.getElementById('producto-id').value;
+    const body = {
+      nombre: document.getElementById('campo-nombre').value.trim(),
+      precio: parseFloat(document.getElementById('campo-precio').value),
+      stock:  parseInt(document.getElementById('campo-stock').value),
+    };
+    if (!body.nombre || isNaN(body.precio) || isNaN(body.stock)) { mostrarToast('Completa todos los campos', 'error'); return; }
+    try {
+      const url = id ? `${API}/productos/${id}` : `${API}/productos`;
+      const method = id ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (res.ok) { mostrarToast(json.mensaje, 'success'); cerrarModal(); cargarProductos(); }
+      else mostrarToast(json.mensaje || 'Error', 'error');
+    } catch { mostrarToast('Error de conexión', 'error'); }
+  }
+
+  async function eliminarProducto(id, nombre) {
+    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+    try {
+      const res = await fetch(`${API}/productos/${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      mostrarToast(json.mensaje, res.ok ? 'success' : 'error');
+      if (res.ok) cargarProductos();
+    } catch { mostrarToast('Error de conexión', 'error'); }
+  }
+
+  function mostrarToast(msg, tipo = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `toast ${tipo} show`;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  cargarProductos();
+</script>
+</body>
+</html>

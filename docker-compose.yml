@@ -1,0 +1,48 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: crud_ruby_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mi_tienda
+      POSTGRES_USER: damasko
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U damasko -d mi_tienda"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${DOCKER_USER}/crud-ruby-api:latest
+    container_name: crud_ruby_api
+    restart: unless-stopped
+    build: .
+    ports:
+      - "4567:4567"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: mi_tienda
+      DB_USER: damasko
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  portal:
+    image: nginx:alpine
+    container_name: crud_ruby_portal
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./portal.html:/usr/share/nginx/html/index.html:ro
+
+volumes:
+  postgres_data:
